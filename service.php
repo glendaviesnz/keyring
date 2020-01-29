@@ -43,6 +43,19 @@ abstract class Keyring_Service {
 	abstract function request( $url, array $params );
 
 	/**
+	 * A shortcut to query registered endpoints.  It saves having to re-extract the url and method manually.
+	 *
+	 * @param string $endpoint The registered endpoint (via `->set_endpoint()`) to query.
+	 * @return Keyring_Error|String Either an error or the response data.
+	 */
+	function request_endpoint( $endpoint ) {
+		if ( property_exists( $this, "{$endpoint}_url" ) && property_exists( $this, "{$endpoint}_method" ) ) {
+			return $this->request( $this->{"{$endpoint}_url"}, array( 'method' => $this->{"{$endpoint}_method"} ) );
+		}
+		return new Keyring_Error( 'undefined-endpoint', __( 'Keyring Error: The specified endpoint has not been defined.' ) );
+	}
+
+	/**
 	 * Get a displayable string for the passed token, for this service
 	 *
 	 * @param obj $token Keyring_Access_Token object
@@ -69,7 +82,7 @@ abstract class Keyring_Service {
 		add_action( 'keyring_' . $this->get_name() . '_verify', array( $this, 'verify_token' ) );
 	}
 
-	static function &init() {
+	static function init() {
 		static $instance = false;
 
 		if ( !$instance ) {
@@ -143,6 +156,7 @@ abstract class Keyring_Service {
 
 		// Common Header
 		echo '<div class="wrap">';
+		screen_icon( 'ms-admin' );
 		echo '<h2>' . __( 'Keyring Service Management', 'keyring' ) . '</h2>';
 		echo '<p><a href="' . Keyring_Util::admin_url( false, array( 'action' => 'services' ) ) . '">' . __( '&larr; Back', 'keyring' ) . '</a></p>';
 		echo '<h3>' . sprintf( __( '%s API Credentials', 'keyring' ), esc_html( $this->get_label() ) ) . '</h3>';
@@ -150,11 +164,11 @@ abstract class Keyring_Service {
 		// Handle actually saving credentials
 		if ( isset( $_POST['api_key'] ) && isset( $_POST['api_secret'] ) ) {
 			// Store credentials against this service
-			$this->update_credentials( apply_filters( 'keyring_' . $this->get_name() . '_basic_ui_save_credentials', array(
-				'app_id' => ( ! empty( $_POST['app_id'] ) ? stripslashes( trim( $_POST['app_id'] ) ) : '' ),
-				'key'    => ( ! empty( $_POST['api_key'] ) ? stripslashes( trim( $_POST['api_key'] ) ) : '' ),
-				'secret' => ( ! empty( $_POST['api_secret'] ) ? stripslashes( trim( $_POST['api_secret'] ) ) : '' )
-			) ) );
+			$this->update_credentials( array(
+				'app_id' => stripslashes( $_POST['app_id'] ),
+				'key'    => stripslashes( $_POST['api_key'] ),
+				'secret' => stripslashes( $_POST['api_secret'] )
+			) );
 			echo '<div class="updated"><p>' . __( 'Credentials saved.', 'keyring' ) . '</p></div>';
 		}
 
@@ -174,26 +188,16 @@ abstract class Keyring_Service {
 		wp_nonce_field( 'keyring-manage', 'kr_nonce', false );
 		wp_nonce_field( 'keyring-manage-' . $this->get_name(), 'nonce', false );
 		echo '<table class="form-table">';
-
-		$ui_app_id = '<tr><th scope="row">' . __( 'App ID', 'keyring' ) . '</th>';
-		$ui_app_id .= '<td><input type="text" name="app_id" value="' . esc_attr( $app_id ) . '" id="app_id" class="regular-text"></td></tr>';
-
-		echo apply_filters( 'keyring_' . $this->get_name() . '_basic_ui_app_id', $ui_app_id );
-
-		$ui_api_key = '<tr><th scope="row">' . __( 'API Key', 'keyring' ) . '</th>';
-		$ui_api_key .= '<td><input type="text" name="api_key" value="' . esc_attr( $api_key ) . '" id="api_key" class="regular-text"></td></tr>';
-
-		echo apply_filters( 'keyring_' . $this->get_name() . '_basic_ui_api_key', $ui_api_key );
-
-		$ui_api_secret = '<tr><th scope="row">' . __( 'API Secret', 'keyring' ) . '</th>';
-		$ui_api_secret .= '<td><input type="text" name="api_secret" value="' . esc_attr( $api_secret ) . '" id="api_secret" class="regular-text"></td></tr>';
-
-		echo apply_filters( 'keyring_' . $this->get_name() . '_basic_ui_api_secret', $ui_api_secret );
-
+		echo '<tr><th scope="row">' . __( 'App ID', 'keyring' ) . '</th>';
+		echo '<td><input type="text" name="app_id" value="' . esc_attr( $app_id ) . '" id="app_id" class="regular-text"></td></tr>';
+		echo '<tr><th scope="row">' . __( 'API Key', 'keyring' ) . '</th>';
+		echo '<td><input type="text" name="api_key" value="' . esc_attr( $api_key ) . '" id="api_key" class="regular-text"></td></tr>';
+		echo '<tr><th scope="row">' . __( 'API Secret', 'keyring' ) . '</th>';
+		echo '<td><input type="text" name="api_secret" value="' . esc_attr( $api_secret ) . '" id="api_secret" class="regular-text"></td></tr>';
 		echo '</table>';
 		echo '<p class="submitbox">';
 		echo '<input type="submit" name="submit" value="' . __( 'Save Changes', 'keyring' ) . '" id="submit" class="button-primary">';
-		echo '<a href="' . esc_url( Keyring_Util::admin_url( null, array( 'action' => 'services' ) ) ) . '" class="submitdelete" style="margin-left:2em;">' . __( 'Cancel', 'keyring' ) . '</a>';
+		echo '<a href="' . esc_url( $_SERVER['HTTP_REFERER'] ) . '" class="submitdelete" style="margin-left:2em;">' . __( 'Cancel', 'keyring' ) . '</a>';
 		echo '</p>';
 		echo '</form>';
 		?><script type="text/javascript" charset="utf-8">

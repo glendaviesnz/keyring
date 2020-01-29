@@ -44,7 +44,7 @@ class Keyring_Service_Yahoo extends Keyring_Service_OAuth1 {
 
 		$this->set_token(
 			new Keyring_Access_Token(
-				$this->get_name(),
+				'yahoo',
 				new OAuthToken(
 					$token['oauth_token'],
 					$token['oauth_token_secret']
@@ -66,7 +66,7 @@ class Keyring_Service_Yahoo extends Keyring_Service_OAuth1 {
 			);
 		}
 
-		return apply_filters( 'keyring_access_token_meta', $meta, $this->get_name(), $token, $response, $this );
+		return apply_filters( 'keyring_access_token_meta', $meta, 'yahoo', $token, $response, $this );
 	}
 
 	function get_display( Keyring_Access_Token$token ) {

@@ -60,9 +60,14 @@ class Keyring_Service_OAuth2 extends Keyring_Service_OAuth1 {
 			'state'         => $request_token_id,
 		);
 		$params = apply_filters( 'keyring_' . $this->get_name() . '_request_token_params', $params );
-		Keyring_Util::debug( 'OAuth2 Redirect URL: ' . $url . _http_build_query( $params, '', '&' ) );
+		Keyring_Util::debug( 'OAuth2 Redirect URL: ' . $url . http_build_query( $params ) );
 
-		wp_redirect( $url . _http_build_query( $params, '', '&' ) );
+		$scope = apply_filters( 'keyring_' . $this->get_name() . '_request_scope', false );
+		if ( $scope ) {
+			$params['scope'] = $scope;
+		}
+
+		wp_redirect( $url . http_build_query( $params ) );
 		exit;
 	}
 
@@ -75,7 +80,7 @@ class Keyring_Service_OAuth2 extends Keyring_Service_OAuth1 {
 
 		if ( !isset( $_GET['code'] ) || !isset( $_GET['state'] ) ) {
 			Keyring::error(
-				sprintf( __( 'There was a problem communicating with %s. Please try again in a moment.', 'keyring' ), $this->get_label() )
+				sprintf( __( 'There was a problem authorizing with %s. Please try again in a moment.', 'keyring' ), $this->get_label() )
 			);
 			return false;
 		}
@@ -119,23 +124,25 @@ class Keyring_Service_OAuth2 extends Keyring_Service_OAuth1 {
 		);
 		$params = apply_filters( 'keyring_' . $this->get_name() . '_verify_token_params', $params );
 		Keyring_Util::debug( 'OAuth2 Access Token URL: ' . $url . http_build_query( $params ) );
+
 		switch ( strtoupper( $this->access_token_method ) ) {
 		case 'GET':
 			$res = wp_remote_get( $url . http_build_query( $params ) );
 			break;
 		case 'POST':
-			$res = wp_remote_post( $url, apply_filters( 'keyring_' . $this->get_name() . '_verify_token_post_params', array( 'body' => $params ) ) );
+			$res = wp_remote_post( $url, array( 'body' => $params ) );
 			break;
 		}
+
 		Keyring_Util::debug( 'OAuth2 Response' );
 		Keyring_Util::debug( $res );
 
-		// Accept all 2xx response codes
-		if ( '2' == substr( wp_remote_retrieve_response_code( $res ), 0, 1 ) ) {
+		if ( 200 == wp_remote_retrieve_response_code( $res ) ) {
 			$token = wp_remote_retrieve_body( $res );
 			Keyring_Util::debug( $token );
 
 			$token = $this->parse_access_token( $token );
+
 			$access_token = new Keyring_Access_Token(
 				$this->get_name(),
 				$token['access_token'],
@@ -175,7 +182,14 @@ class Keyring_Service_OAuth2 extends Keyring_Service_OAuth1 {
 		if ( $this->requires_token() && empty( $this->token ) )
 			return new Keyring_Error( 'keyring-request-error', __( 'No token' ) );
 
-		$token = $this->token ? $this->token : null;
+		// WPCOM Hack because tokens are all stored as OAuthToken objects
+		if ( !empty( $this->token->token->key ) ) {
+			$token = $this->token->token->key;
+		} else if ( is_string( $this->token->token ) ) {
+			$token = $this->token->token;
+		} else {
+			$token = null;
+		}
 
 		if ( !is_null( $token ) ) {
 			if ( $this->authorization_header ) {
@@ -198,6 +212,12 @@ class Keyring_Service_OAuth2 extends Keyring_Service_OAuth1 {
 			unset( $params['method'] );
 		}
 
+		$full_response = false;
+		if ( isset( $params['full_response'] ) ) {
+			$full_response = (bool) $params['full_response'];
+			unset( $params['full_response'] );
+		}
+
 		Keyring_Util::debug( 'OAuth2 Params' );
 		Keyring_Util::debug( $params );
 
@@ -211,6 +231,13 @@ class Keyring_Service_OAuth2 extends Keyring_Service_OAuth1 {
 			$res = wp_remote_post( $url, $params );
 			break;
 
+		case 'PUT':
+			// Make sure PUT requests have a Content-Length header set otherwise the server might return an error
+			// See: https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html
+			if ( ! isset( $params['body'] ) && ! isset( $params['headers']['Content-Length'] ) ) {
+				$params['headers']['Content-Length'] = '0';
+			}
+
 		default:
 			$params = array_merge( array( 'method' => $method, 'sslverify' => false ), $params );
 			$res = wp_remote_request( $url, $params );
@@ -221,15 +248,18 @@ class Keyring_Service_OAuth2 extends Keyring_Service_OAuth1 {
 		Keyring_Util::debug( $res );
 
 		$this->set_request_response_code( wp_remote_retrieve_response_code( $res ) );
-		// Accept all 2xx response codes
-		if ( '2' == substr( wp_remote_retrieve_response_code( $res ), 0, 1 ) ) {
-			if ( $raw_response ) {
+		if ( 200 <= wp_remote_retrieve_response_code( $res ) && 300 > wp_remote_retrieve_response_code( $res ) ) {
+			if ( $full_response ) {
+				return $res;
+			} else if ( $raw_response ) {
 				return wp_remote_retrieve_body( $res );
+			} else if ( '' === wp_remote_retrieve_body( $res ) ) {
+				return wp_remote_retrieve_headers( $res );
 			} else {
 				return $this->parse_response( wp_remote_retrieve_body( $res ) );
 			}
 		} else {
-			return new Keyring_Error( 'keyring-request-error', $res );
+			return new Keyring_Error( 'keyring-request-error', $res  );
 		}
 	}
 

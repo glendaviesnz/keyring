@@ -51,12 +51,12 @@ class Keyring_Service_GoogleBase extends Keyring_Service_OAuth2 {
 		$class = get_called_class();
 
 		echo '<p>' . sprintf( __( "Google controls access to all of their APIs through their API Console. <a href='%s'>Go to the Library page in the console</a> and click the <strong>Select a project</strong> dropdown next to the logo in the upper left of the screen. Click the <strong>plus icon</strong> to create a new project. Enter a name and then click <strong>Create</strong>.", 'keyring' ), 'https://console.developers.google.com/apis/library' ) . '</p>';
-		/* translators: %s: The name of the service being connected */
+		/* translators: %s: The name of the service bening connected */
 		echo '<p>' . sprintf( __( "Now you need to enable the %s and setup your OAuth credentials.", 'keyring' ), $class::LABEL ) . '</p>';
 		echo '<ol>';
 		echo '<li>' . __( "Select your project from the project dropdown.", 'keyring' ) . '</li>';
 		echo '<li>' . __( "Click <strong>Library</strong> in the menu on the left.", 'keyring' ) . '</li>';
-		/* translators: %s: The name of the service being connected */
+		/* translators: %s: The name of the service bening connected */
 		echo '<li>' . sprintf( __( "Find and click <strong>%s</strong>.", 'keyring' ), $class::LABEL ) . '</li>';
 		echo '<li>' . __( "Next to the heading, click <strong>Enable</strong>.", 'keyring' ) . '</li>';
 		echo '<li>' . __( "Click the blue button labelled <strong>Create credentials</strong>.", 'keyring' ) . '</li>';
@@ -78,9 +78,12 @@ class Keyring_Service_GoogleBase extends Keyring_Service_OAuth2 {
 
 	function request_token_params( $params ) {
 		$class = get_called_class();
-		$params['prompt']      = 'consent'; // Always prompt, and get a refresh token for offline access
 		$params['scope']       = $class::SCOPE;
 		$params['access_type'] = $class::ACCESS_TYPE;
+
+		// Force consent so that we're always given a refresh token
+		$params['prompt'] = 'consent';
+
 		return $params;
 	}
 
@@ -176,7 +179,7 @@ class Keyring_Service_GoogleBase extends Keyring_Service_OAuth2 {
 		);
 
 		// Store the updated access token
-		$access_token = apply_filters( 'keyring_access_token', $access_token, (array) $return );
+		$access_token = apply_filters( 'keyring_access_token', $access_token, $token );
 		$id = $this->store->update( $access_token );
 
 		// And switch to using it
@@ -194,7 +197,7 @@ class Keyring_Service_GoogleBase extends Keyring_Service_OAuth2 {
 		echo '<div class="wrap">';
 		echo '<h2>' . __( 'Keyring Service Management', 'keyring' ) . '</h2>';
 		echo '<p><a href="' . Keyring_Util::admin_url( false, array( 'action' => 'services' ) ) . '">' . __( '&larr; Back', 'keyring' ) . '</a></p>';
-		/* translators: %s: The name of the service being connected */
+		/* translators: %s: The name of the service bening connected */
 		echo '<h3>' . sprintf( __( '%s API Credentials', 'keyring' ), esc_html( $this->get_label() ) ) . '</h3>';
 
 		// Handle actually saving credentials
@@ -237,7 +240,7 @@ class Keyring_Service_GoogleBase extends Keyring_Service_OAuth2 {
 		echo '</table>';
 		echo '<p class="submitbox">';
 		echo '<input type="submit" name="submit" value="' . __( 'Save Changes', 'keyring' ) . '" id="submit" class="button-primary">';
-		echo '<a href="' . esc_url( Keyring_Util::admin_url( null, array( 'action' => 'services' ) ) ) . '" class="submitdelete" style="margin-left:2em;">' . __( 'Cancel', 'keyring' ) . '</a>';
+		echo '<a href="' . esc_url( $_SERVER['HTTP_REFERER'] ) . '" class="submitdelete" style="margin-left:2em;">' . __( 'Cancel', 'keyring' ) . '</a>';
 		echo '</p>';
 		echo '</form>';
 		echo '</div>';

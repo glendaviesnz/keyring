@@ -102,7 +102,7 @@ class Keyring_Token {
 			return false; // Doesn't expire
 		}
 
-		if ( (int) ( time() + $window ) > (int) $expires ) {
+		if ( ( time() + $window ) > strtotime( $expires ) ) {
 			return true; // Token's expiry time has passed, or will pass before $window
 		}
 

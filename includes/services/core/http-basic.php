@@ -30,6 +30,7 @@ class Keyring_Service_HTTP_Basic extends Keyring_Service {
 	function request_ui() {
 		// Common Header
 		echo '<div class="wrap">';
+		screen_icon( 'ms-admin' );
 		echo '<h2>' . __( 'Account Details', 'keyring' ) . '</h2>';
 
 		// Handle errors
@@ -82,7 +83,7 @@ class Keyring_Service_HTTP_Basic extends Keyring_Service {
 		echo '</table>';
 		echo '<p class="submitbox">';
 		echo '<input type="submit" name="submit" value="' . __( 'Verify Details', 'keyring' ) . '" id="submit" class="button-primary">';
-		echo '<a href="' . esc_url( Keyring_Util::admin_url( null, array( 'action' => 'services' ) ) ) . '" class="submitdelete" style="margin-left:2em;">' . __( 'Cancel', 'keyring' ) . '</a>';
+		echo '<a href="' . esc_url( $_SERVER['HTTP_REFERER'] ) . '" class="submitdelete" style="margin-left:2em;">' . __( 'Cancel', 'keyring' ) . '</a>';
 		echo '</p>';
 		echo '</form>';
 		echo '</div>';
@@ -106,7 +107,7 @@ class Keyring_Service_HTTP_Basic extends Keyring_Service {
 		// Load up the request token that got us here and globalize it
 		if ( isset( $_REQUEST['state'] ) ) {
 			global $keyring_request_token;
-			$state = empty( $_GET['state'] ) ? '' : preg_replace( '/[^\x20-\x7E]/', '', $_GET['state'] );
+			$state = preg_replace( '/[^\x20-\x7E]/', '', $_GET['state'] );
 			$keyring_request_token = $this->store->get_token( array( 'id' => $state, 'type' => 'request' ) );
 			Keyring_Util::debug( 'HTTP Basic Loaded Request Token ' . $state );
 			Keyring_Util::debug( $keyring_request_token );
@@ -133,7 +134,7 @@ class Keyring_Service_HTTP_Basic extends Keyring_Service {
 
 		$token = new Keyring_Access_Token(
 			$this->get_name(),
-			base64_encode( trim( $_POST['username'] ) . ':' . trim( $_POST['password'] ) )
+			base64_encode( $_POST['username'] . ':' . $_POST['password'] )
 		);
 		$this->set_token( $token );
 		$res = $this->request( $this->verify_url, array( 'method' => $this->verify_method ) );
@@ -154,7 +155,7 @@ class Keyring_Service_HTTP_Basic extends Keyring_Service {
 			exit;
 		}
 
-		$meta = array_merge( array( 'username' => trim( $_POST['username'] ), $this->build_token_meta( $token ) ) );
+		$meta = array_merge( array( 'username' => $_POST['username'] ), $this->build_token_meta( $token ) );
 
 		$access_token = new Keyring_Access_Token(
 			$this->get_name(),
@@ -206,7 +207,7 @@ class Keyring_Service_HTTP_Basic extends Keyring_Service {
 
 		Keyring_Util::debug( $res );
 		$this->set_request_response_code( wp_remote_retrieve_response_code( $res ) );
-		if ( wp_startswith( wp_remote_retrieve_response_code( $res ), '2' ) ) {
+		if ( 200 == wp_remote_retrieve_response_code( $res ) || 201 == wp_remote_retrieve_response_code( $res ) ) {
 			if ( $raw_response )
 				return wp_remote_retrieve_body( $res );
 			else

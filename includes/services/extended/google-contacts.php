@@ -35,6 +35,11 @@ class Keyring_Service_GoogleContacts extends Keyring_Service_GoogleBase {
 		}
 	}
 
+	function request_token_params( $params ) {
+		$params['scope'] = self::SCOPE;
+		return $params;
+	}
+
 	function request( $url, array $params = array() ) {
 		// add header (version), required for all requests
 		$params['headers']['GData-Version'] = self::API_VERSION;

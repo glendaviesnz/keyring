@@ -107,15 +107,9 @@ Add files to includes/services/extended/ that either implement one of the includ
 
 =  =
 * Enhancement: Added a GitHub Service definition, props @alperakgun.
-* Enhancement: Added a Google Drive Service definition, props @scruffian.
 * Enhancement: Trim spaces off API keys etc to avoid mistakes when copy/pasting. Props @kbrown9.
 * Enhancement: Allow all 2xx response codes to be considered "Success" for all requests, for all protocols. Props @bgrgicak for the proposal.
 * Enhancement: Add translator comments. Props @scruffian.
-* Bugfix: Make the Google services always request a refresh token for offline access. Props @kbrown9 and @atrniv for input.
-* Bugfix: Update Strava to use refresh tokens and offline access, per their new API requirements. Props @mdrovdahl for pointing it out.
-* Bugfix: Update use of add_submenu_page() to comply with WP 5.3. Props @jhwwp (wp.org) for the fix.
-* Bugfix: Apply the keyring_access_token filter consistently in Google Services. Props @pablinos.
-* Bugfix: Use static "Cancel" URIs in UIs. Props @pgl.
 
 = 2.0 =
 * Bugfix BREAKING: Remove invalid reference to $this in error handler. Changes number of params passed to keyring_error action.

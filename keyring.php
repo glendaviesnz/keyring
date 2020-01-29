@@ -3,10 +3,9 @@
 Plugin Name: Keyring
 Plugin URI: http://dentedreality.com.au/projects/wp-keyring/
 Description: Keyring helps you manage your keys. It provides a generic, very hookable framework for connecting to remote systems and managing your access tokens, username/password combos etc for those services. On its own it doesn't do much, but it enables other plugins to do things that require authorization to act on your behalf.
-Version: 2.0
+Version: 1.6
 Author: Beau Lebens
 Author URI: http://dentedreality.com.au
-License: GPL v2 or newer <https://www.gnu.org/licenses/gpl.txt>
 */
 
 // Define this in your wp-config (and set to true) to enable debugging
@@ -26,7 +25,7 @@ define( 'KEYRING__DEBUG_WARN',   2 );
 define( 'KEYRING__DEBUG_ERROR',  3 );
 
 // Indicates Keyring is installed/active so that other plugins can detect it
-define( 'KEYRING__VERSION', '2.0' );
+define( 'KEYRING__VERSION', '1.6' );
 
 /**
  * Core Keyring class that handles UI and the general flow of requesting access tokens etc
@@ -192,16 +191,13 @@ class Keyring {
 	 * Generic error handler/trigger.
 	 * @param  String $str	Informational message (user-readable)
 	 * @param  array  $info Additional information relating to the error.
-	 * @param  boolean $die If we should immediately die (default) or continue
 	 */
-	static function error( $str, $info = array(), $die = true ) {
+	static function error( $str, $info = array() ) {
 		$keyring = Keyring::init();
 		$keyring->errors[] = $str;
-		do_action( 'keyring_error', $str, $info );
-		if ( $die ) {
-			wp_die( $str, __( 'Keyring Error', 'keyring' ) );
-			exit;
-		}
+		do_action( 'keyring_error', $str, $info, isset( $this ) ? $this : null );
+		wp_die( $str, __( 'Keyring Error', 'keyring' ) );
+		exit;
 	}
 
 	function has_errors() {
@@ -261,13 +257,11 @@ class Keyring_Util {
 	static function admin_url( $service = false, $params = array() ) {
 		$url = admin_url();
 
-		if ( $service ) {
+		if ( $service )
 			$params['service'] = $service;
-		}
 
-		if ( count( $params ) ) {
+		if ( count( $params ) )
 			$url = add_query_arg( $params, $url );
-		}
 
 		return apply_filters( 'keyring_admin_url', $url, $params );
 	}
@@ -313,5 +307,9 @@ class Keyring_Util {
  */
 class Keyring_Error extends WP_Error { }
 
-// This is the main hook that kicks off everything. Needs to be early so we have time to load everything.
-add_action( 'plugins_loaded', array( 'Keyring', 'plugins_loaded' ) );
+
+// WPCOM only
+if ( defined( 'ENABLE_NEW_PUBLICIZE' ) && ENABLE_NEW_PUBLICIZE )
+	add_action( 'plugins_loaded', array( 'Keyring', 'plugins_loaded' ) );
+
+require_once dirname( __FILE__ ) . '/wpcom.php';
